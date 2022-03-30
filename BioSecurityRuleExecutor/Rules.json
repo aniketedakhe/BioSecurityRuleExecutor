@@ -1,0 +1,21 @@
+﻿{
+  "WorkflowName": "validateCase",
+  "Rules": [
+    {
+      "RuleName": "ValidateCountry",
+      "SuccessEvent": "country awesome",
+      "ErrorMessage": "Please provide country name",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "data.SupplierCntryCode == \"NZ\""
+    },
+    {
+      "RuleName": "ValidateCommodity",
+      "SuccessEvent": "commodity awesome",
+      "ErrorMessage": "Please provide a valid commodity",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "data.GdsDescr == \"GdsDescr\""
+    }
+  ]
+}
