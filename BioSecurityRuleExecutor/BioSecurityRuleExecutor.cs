@@ -19,7 +19,7 @@ using RulesEngine.HelperFunctions;
 using RulesEngine.Interfaces;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Reflection; 
+using System.Reflection;
 
 namespace BioSecurityRuleExecutor
 {
@@ -35,9 +35,14 @@ namespace BioSecurityRuleExecutor
             string operationName = req.Query["operation"];
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
-            dynamic data = JsonConvert.DeserializeObject(requestBody);
+            //dynamic data = JsonConvert.DeserializeObject(requestBody);
             //the body of the message has the payload for case and request 
 
+
+            //ExpandoObject deserialisation
+            var converter = new ExpandoObjectConverter();
+            var data = JsonConvert.DeserializeObject<ExpandoObject>(requestBody, converter);
+            
 
 
             var helper = new RulesEngineHelper();
@@ -45,17 +50,24 @@ namespace BioSecurityRuleExecutor
 
             List<RuleResultTree> result = await rulesEngineInstance.ExecuteAllRulesAsync(operationName, data);
 
-            log.LogInformation(result.ToString());
 
+            var reResponse = new RulesEngineResponse();
+            
+            reResponse.OverallStatus = result.Any(c => c.IsSuccess == false) == true ? "One or more rules failed!" : "Success";
+            foreach (RuleResultTree ruleResultItem in result)
+            {
+               
+                reResponse.ruleDetails.Add( new RulesEngineResponse.RuleDetails { RuleName = ruleResultItem.Rule.RuleName,
+                                                                                  IsSuccess = ruleResultItem.IsSuccess,
+                                                                                  ExceptionMessage = ruleResultItem.ExceptionMessage } );
+            }
 
+            string responseMessage = JsonConvert.SerializeObject(reResponse);
+            
 
-
-            bool outcome = false;
-            operationName = outcome.ToString();
-
-            string responseMessage = string.IsNullOrEmpty(operationName)
-                ? "This HTTP triggered function executed successfully. Pass a name in the query string or in the request body for a personalized response."
-                : $"Hello, {operationName}. This HTTP triggered function executed successfully.";
+            responseMessage = string.IsNullOrEmpty(operationName)
+                ? "Please provide a valid operationName for the consumer"
+                : responseMessage;
 
             return new OkObjectResult(responseMessage);
         }
@@ -76,4 +88,23 @@ namespace BioSecurityRuleExecutor
             return File.ReadAllText(Path.Combine(parent.FullName, filename));
         }
     }
-}
+
+    public class RulesEngineResponse
+    {
+        public int RiskRating { get; set; }
+        public string OverallStatus { get; set; }
+
+        public class RuleDetails {
+            public string RuleName { get; set; }
+            public bool IsSuccess { get; set; }
+            public string ExceptionMessage { get; set; }
+            public IEnumerable<RuleResultTree> ChildResults { get; set; }
+        }
+        public List<RuleDetails> ruleDetails;
+
+        public RulesEngineResponse() {
+            this.ruleDetails = new List<RulesEngineResponse.RuleDetails>();
+        }
+    }   
+    }
+

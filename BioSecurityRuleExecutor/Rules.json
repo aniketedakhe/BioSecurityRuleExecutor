@@ -2,21 +2,28 @@
   "WorkflowName": "validateCase",
   "Rules": [
     {
-      "RuleName": "ValidateCountry",
-      "SuccessEvent": "country awesome",
+      "RuleName": "Validate Country",
+      "SuccessEvent": "onSuccessCountry",
       "ErrorMessage": "Please provide country name",
       "ErrorType": "Error",
       "RuleExpressionType": "LambdaExpression",
-      "Expression": "data.SupplierCntryCode == \"NZ\""
+      "Expression": "Lines.Line[0].GOCS.GOCG[0].GdsOriginCntryCode == \"NZ\""
     },
     {
-      "RuleName": "ValidateCommodity",
-      "SuccessEvent": "commodity awesome",
+      "RuleName": "Validate Commodity",
+      "SuccessEvent": "onSuccessCommodity",
       "ErrorMessage": "Please provide a valid commodity",
       "ErrorType": "Error",
       "RuleExpressionType": "LambdaExpression",
-      "Expression": "data.GdsDescr == \"GdsDescr\""
+      "Expression": "Lines.Line[0].GdsDescr.Contains(\"AVOCADO\",StringComparison.OrdinalIgnoreCase)"
+    },
+    {
+      "RuleName": "Validate Tariff Number",
+      "SuccessEvent": "onSuccessCommodity",
+      "ErrorMessage": "Please provide a valid tariff code",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "Lines.Line[0].TariffClassNo = 44219100"
     }
   ]
 }
-//
