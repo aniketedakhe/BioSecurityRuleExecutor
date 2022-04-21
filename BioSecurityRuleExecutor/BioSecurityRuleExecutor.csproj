@@ -12,6 +12,9 @@
     <None Remove="RulesEngine" />
     <None Remove="Moq" />
     <None Remove="Rules.json" />
+    <None Remove="validateCase %28copy%29.json" />
+    <None Remove="assessRisk.json" />
+    <None Remove="assessRiskAtBorder.json" />
   </ItemGroup>
   <ItemGroup>
     <None Update="host.json">
@@ -23,8 +26,19 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="Rules.json">
+    <Content Include="validateCase.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
+    <Content Include="assessTaskList.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="assessRisk.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="assessRiskAtBorder.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </EmbeddedResource>
   </ItemGroup>
 </Project>

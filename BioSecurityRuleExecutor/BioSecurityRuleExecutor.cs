@@ -1,25 +1,27 @@
 ﻿using System;
 using System.IO;
 using System.Threading.Tasks;
+using System.Collections.Generic;
+using System.Dynamic;
+using System.Linq;
+using System.Reflection;
+
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using Moq;
+
 using RulesEngine;
-using RulesEngine.Models;
-using System.Collections.Generic;
-using System.Dynamic;
 using static RulesEngine.Extensions.ListofRuleResultTreeExtension;
-using Newtonsoft.Json.Converters;
 using RulesEngine.Exceptions;
 using RulesEngine.HelperFunctions;
 using RulesEngine.Interfaces;
-using System.Diagnostics.CodeAnalysis;
-using System.Linq;
-using System.Reflection;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using RulesEngine.Models;
+
+using Moq;
 
 namespace BioSecurityRuleExecutor
 {
@@ -27,12 +29,13 @@ namespace BioSecurityRuleExecutor
     {
         [FunctionName("BioSecurityRuleExecutor")]
         public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
+            [HttpTrigger(AuthorizationLevel.Anonymous, "get", "post", Route = null)] HttpRequest req,
             ILogger log)
         {
             log.LogInformation("C# HTTP trigger function processed a request.");
 
             string operationName = req.Query["operation"];
+            string responseMessage = "";
 
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             //dynamic data = JsonConvert.DeserializeObject(requestBody);
@@ -41,35 +44,139 @@ namespace BioSecurityRuleExecutor
 
             //ExpandoObject deserialisation
             var converter = new ExpandoObjectConverter();
-            var data = JsonConvert.DeserializeObject<ExpandoObject>(requestBody, converter);
+            dynamic data = JsonConvert.DeserializeObject<ExpandoObject>(requestBody, converter);
             
-
+            
 
             var helper = new RulesEngineHelper();
-            var rulesEngineInstance = helper.GetRulesEngine("Rules.json", null, operationName);
+            var rulesEngineInstance = helper.GetRulesEngine(operationName + ".json", null, operationName);
 
-            List<RuleResultTree> result = await rulesEngineInstance.ExecuteAllRulesAsync(operationName, data);
+            var ruleParams = new List<RuleParameter>();
+            var obj = Utils.GetTypedObject(data);
+            ruleParams.Add(new RuleParameter($"var", obj));
+            var dataforRules = ruleParams?.ToArray();
 
 
-            var reResponse = new RulesEngineResponse();
+            List<RuleResultTree> result = await rulesEngineInstance.ExecuteAllRulesAsync(operationName, dataforRules);
+
             
-            reResponse.OverallStatus = result.Any(c => c.IsSuccess == false) == true ? "One or more rules failed!" : "Success";
-            foreach (RuleResultTree ruleResultItem in result)
+            
+            
+
+            switch (operationName)
             {
-               
-                reResponse.ruleDetails.Add( new RulesEngineResponse.RuleDetails { RuleName = ruleResultItem.Rule.RuleName,
-                                                                                  IsSuccess = ruleResultItem.IsSuccess,
-                                                                                  ExceptionMessage = ruleResultItem.ExceptionMessage } );
-            }
+                case "validateCase":
+                    var reResponse = new ReResponseValidateCase();
 
-            string responseMessage = JsonConvert.SerializeObject(reResponse);
+                    foreach (RuleResultTree ruleResultItem in result)
+                    {
+
+                        reResponse.ruleDetails.Add(new ReResponseValidateCase.RuleDetails
+                        {
+                            RuleName = ruleResultItem.Rule.RuleName,
+                            IsSuccess = ruleResultItem.IsSuccess,
+                            ExceptionMessage = ruleResultItem.ExceptionMessage
+                        });
+                    }
+
+                    return new OkObjectResult(reResponse);
+
+                    break;
+                case "assessTaskList":
+
+                    var reResponseTaskList = new ReResponseAssessTaskList();
+
+                    dynamic biconConditions = data.BiconData[0].ImportConditions;
+                    foreach (dynamic condition in biconConditions){
+                        
+                        reResponseTaskList.taskList.Add(new ReResponseAssessTaskList.TaskList
+                        {
+                            ConditionType = condition.ConditionType,
+                            Condition = condition.Condition,
+                            ConditionCategory = condition.ConditionCategory,
+                            Mandatory = condition.Mandatory,
+                            MediaEvidence = condition.MediaEvidence,
+                            InputCategory = condition.InputCategory,
+                            Status = string.IsNullOrEmpty("") ? "Pending" : "Completed",
+                            Value = ""
+                        });
+                    }
+
+                    return new OkObjectResult(reResponseTaskList);
+                    break;
+
+
+                case "assessRisk":
+                case "assessRiskAtBorder":
+                    var reResponseAssessRisk = new ReResponseAssessRisks();
+
+                    dynamic taskList = data.TaskList;
+                    
+                    
+                    var falseResults = result.Where( c => c.IsSuccess == false);
+                    var falseResultsCount = falseResults.Count();
+
+                    var trueResults = result.Where(c => c.IsSuccess == true);
+                    var trueResultsCount = trueResults.Count();
+                    reResponseAssessRisk.RiskRating =  trueResults.Count() / ((falseResults.Count() + trueResults.Count()) * 100);
+                    if (reResponseAssessRisk.RiskRating < 40)
+                    {
+                        reResponseAssessRisk.OverallStatus = "High";
+                    }
+                    else if (reResponseAssessRisk.RiskRating < 70)
+                    {
+                        reResponseAssessRisk.OverallStatus = "Medium";
+                    }
+                    else if(reResponseAssessRisk.RiskRating <= 100)
+                    {
+                        reResponseAssessRisk.OverallStatus = "Low";
+                    }
+
+
+                    foreach (dynamic condition in taskList)
+                    {
+
+                        reResponseAssessRisk.assessments.AddItem(new ReResponseAssessTaskList.TaskList
+                        {
+                            ConditionType = condition.ConditionType,
+                            Condition = condition.Condition,
+                            ConditionCategory = condition.ConditionCategory,
+                            Mandatory = condition.Mandatory,
+                            MediaEvidence = condition.MediaEvidence,
+                            InputCategory = condition.InputCategory,
+                            Status = condition.Status,
+                            Value = condition.Value,
+                        });
+                    }
+
+                    foreach (RuleResultTree ruleResultItem in result)
+                    {
+
+                        reResponseAssessRisk.validations.AddItem(new ReResponseValidateCase.RuleDetails
+                        {
+                            RuleName = ruleResultItem.Rule.RuleName,
+                            IsSuccess = ruleResultItem.IsSuccess,
+                            ExceptionMessage = ruleResultItem.ExceptionMessage
+                        });
+                    }
+
+
+                    return new OkObjectResult(reResponseAssessRisk);
+
+                    break;
+            };
+
+
+
             
 
-            responseMessage = string.IsNullOrEmpty(operationName)
-                ? "Please provide a valid operationName for the consumer"
-                : responseMessage;
 
-            return new OkObjectResult(responseMessage);
+            
+            responseMessage = string.IsNullOrEmpty(responseMessage)
+                ? "Please provide a valid operation name for the consumer"
+                : responseMessage;
+            
+           return new OkObjectResult(responseMessage);
         }
     }
 
@@ -89,22 +196,84 @@ namespace BioSecurityRuleExecutor
         }
     }
 
-    public class RulesEngineResponse
+    
+
+    public class ReResponseValidateCase : Attribute
     {
-        public int RiskRating { get; set; }
-        public string OverallStatus { get; set; }
 
         public class RuleDetails {
             public string RuleName { get; set; }
-            public bool IsSuccess { get; set; }
+            public bool   IsSuccess { get; set; }
             public string ExceptionMessage { get; set; }
             public IEnumerable<RuleResultTree> ChildResults { get; set; }
         }
         public List<RuleDetails> ruleDetails;
 
-        public RulesEngineResponse() {
-            this.ruleDetails = new List<RulesEngineResponse.RuleDetails>();
+        public ReResponseValidateCase() {
+            this.ruleDetails = new List<ReResponseValidateCase.RuleDetails>();
         }
-    }   
+
+        public void AddItem(RuleDetails rule) {
+            this.ruleDetails.Add(rule);
+        }
     }
+
+
+    public class ReResponseAssessTaskList : Attribute 
+    {
+
+        public class TaskList {
+            public string ConditionType { get; set; }
+            public string Condition { get; set; }
+            public string ConditionCategory { get; set; }
+            public string Mandatory { get; set; }
+            public string MediaEvidence { get; set; }
+            public string InputCategory { get; set; }
+            public string Status { get; set; }
+            public string Value { get; set; }
+
+        }
+
+        public List<TaskList> taskList;
+
+        public ReResponseAssessTaskList()
+        {
+            this.taskList = new List<ReResponseAssessTaskList.TaskList>();
+        }
+        public void AddItem(TaskList task)
+        {
+            this.taskList.Add(task);
+        }
+    }
+
+    [ReResponseValidateCase]
+    [ReResponseAssessTaskList]
+    public class ReResponseAssessRisks
+    {
+        public int RiskRating { get; set; }
+        public string OverallStatus { get; set; }
+        public ReResponseValidateCase validations;
+        public ReResponseAssessTaskList assessments;
+
+        public ReResponseAssessRisks() {
+            this.validations = new ReResponseValidateCase();
+            this.assessments = new ReResponseAssessTaskList();
+        }
+
+        public void AddItem(ReResponseValidateCase.RuleDetails rule = null, ReResponseAssessTaskList.TaskList task = null) {
+            if (rule != null)
+            {
+                this.validations.AddItem(rule);
+            }
+            if (task != null)
+            {
+                this.assessments.AddItem(task);
+            }
+
+        }
+    }
+
+
+
+}
 
