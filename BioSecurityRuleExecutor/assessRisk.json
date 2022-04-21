@@ -1,0 +1,80 @@
+﻿{
+  "WorkflowName": "assessRisk",
+  "Rules": [
+    {
+      "RuleName": "Transport Mode",
+      "SuccessEvent": "",
+      "ErrorMessage": "Transport Mode does not match. Pre-arrival value $(var.TransportMode), eCert Value $(var.Documents[0].DocumentData.TransportMode)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "TransportMode = Documents[0].DocumentData.TransportMode"
+    },
+    {
+      "RuleName": "PortofLoading",
+      "SuccessEvent": "",
+      "ErrorMessage": "Port of Loading does not match. Pre-arrival value : $(var.PortofLoading), eCert Value :$(var.$Documents[0].$DocumentData.LoadingPort)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "PortofLoading = Documents[0].DocumentData.LoadingPort"
+    },
+    {
+      "RuleName": "Port of Arrival",
+      "SuccessEvent": "",
+      "ErrorMessage": "Port of Arrival does not match. Pre-arrival value $(var.FirstPortofArrival), eCert Value $(var.Documents[0].DocumentData.DeclaredPointOfEntry)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "FirstPortofArrival = Documents[0].DocumentData.DeclaredPointOfEntry"
+    },
+    {
+      "RuleName": "Quantity",
+      "SuccessEvent": "",
+      "ErrorMessage": "Quantity and unit does not match. Pre-arrival value $(var.Lines.Line[0].QTYS.QTYG[0].Qty), eCert Value $(var.Documents[0].DocumentData.Quantity)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "Lines.Line[0].QTYS.QTYG[0].Qty = Documents[0].DocumentData.Quantity and Lines.Line[0].QTYS.QTYG[0].QtyUnit = Documents[0].DocumentData.UnitOfQuantity"
+    },
+    {
+      "RuleName": "Shipping Marks",
+      "SuccessEvent": "",
+      "ErrorMessage": "Shipping marks and number does not match. Pre-arrival value $(var.MarksandNumbers), eCert Value $(var.Documents[0].DocumentData.ShippingMarks)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "MarksandNumbers = Documents[0].DocumentData.ShippingMarks"
+    },
+    {
+      "RuleName": "Goods Description",
+      "SuccessEvent": "",
+      "ErrorMessage": "Goods Description does not match. Pre-arrival value $(var.Lines.Line[0].GdsDescr), eCert Value $(var.Documents[0].DocumentData.ScientificOrCommonName)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "Lines.Line[0].GdsDescr = Documents[0].DocumentData.ScientificOrCommonName"
+    },
+    {
+      "RuleName": "Exporting Country",
+      "SuccessEvent": "",
+      "ErrorMessage": "Exporting country does not match. Pre-arrival value $(Lines.Line[0].SupplierCntryCode), eCert Value $(Documents[0].DocumentData.ExportingCountry)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "Lines.Line[0].SupplierCntryCode = Documents[0].DocumentData.ExportingCountry"
+    },
+    {
+      "RuleName": "Document Type",
+      "SuccessEvent": "",
+      "ErrorMessage": "Document Type does not match. Pre-arrival value $(var.Lines.Line[0].AQDDS.AQDDG[0].AQISDocType), eCert Value $(var.Documents[0].DocumentData.CertType)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "Lines.Line[0].AQDDS.AQDDG[0].AQISDocType = Documents[0].DocumentData.CertType"
+    },
+    {
+      "RuleName": "Document Number",
+      "SuccessEvent": "",
+      "ErrorMessage": "Document Number does not match. Pre-arrival value $(var.Lines.Line[0].AQDDS.AQDDG[0].AQISDocNo), eCert Value $(var.Documents[0].DocumentData.CertNumber)",
+      "ErrorType": "Error",
+      "RuleExpressionType": "LambdaExpression",
+      "Expression": "Lines.Line[0].AQDDS.AQDDG[0].AQISDocNo = Documents[0].DocumentData.CertNumber"
+    }
+
+  ]
+}
+
+
